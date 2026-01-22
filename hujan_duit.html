@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Hujan Duit - Sound FX Robot</title>
+  <style>
+    body {
+      background-color: #1a1a1a;
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+      touch-action: none;
+    }
+    
+    #skorBoard {
+      position: absolute;
+      top: 20px; left: 20px;
+      color: #00FF00; font-size: 30px; font-weight: bold;
+      text-shadow: 2px 2px #000; z-index: 10;
+    }
+
+    canvas { display: block; background: linear-gradient(to bottom, #000046, #1cb5e0); }
+    
+    #menuAwal {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      display: flex; justify-content: center; align-items: center; flex-direction: column;
+      z-index: 20;
+    }
+    
+    #gameOverScreen {
+      display: none;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: white; padding: 40px;
+      border-radius: 20px; text-align: center;
+      border: 5px solid red;
+      box-shadow: 0 0 50px rgba(255, 0, 0, 0.5); z-index: 30;
+    }
+    
+    button {
+      background: #FF5722; color: white; border: none;
+      padding: 20px 40px; font-size: 25px; cursor: pointer;
+      border-radius: 50px; font-weight: bold;
+      box-shadow: 0 5px 0 #bf360c;
+    }
+    button:active { transform: translateY(5px); box-shadow: none; }
+  </style>
+</head>
+<body>
+
+  <div id="skorBoard">💰 UANG: 0</div>
+
+  <div id="menuAwal">
+    <h1 style="color: gold; font-size: 60px;">HUJAN DUIT 🤑</h1>
+    <p style="color: white; font-size: 20px;">Versi Anti-Gagu (Pasti Bunyi)</p>
+    <button onclick="mulaiGame()">▶️ MAINKAN</button>
+  </div>
+
+  <div id="gameOverScreen">
+    <h1 style="color: red; font-size: 50px;">😡 KENA BOM! 😡</h1>
+    <h2 id="skorAkhir">Kamu dapat: 0</h2>
+    <button onclick="location.reload()">MAIN LAGI</button>
+  </div>
+
+  <canvas id="game"></canvas>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // --- TEKNOLOGI SUARA PIANO (Dijamin Bunyi) ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function bunyikan(tipe) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (tipe === 'koin') {
+        // Suara "TING!" (Nada Tinggi)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } 
+      else if (tipe === 'bom') {
+        // Suara "BROT!" (Nada Rendah Kasar)
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.5);
+      }
+    }
+
+    let skor = 0;
+    let gameBerjalan = false;
+    
+    const pemain = { x: canvas.width / 2, y: canvas.height - 100, emoji: '🛒' };
+    let bendaJatuh = [];
+    let kecepatanJatuh = 5;
+
+    canvas.addEventListener('mousemove', (e) => { pemain.x = e.clientX; });
+
+    function mulaiGame() {
+      // Pancing audio biar nyala
+      if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+      
+      document.getElementById('menuAwal').style.display = 'none';
+      gameBerjalan = true;
+      buatBenda();
+      update();
+    }
+
+    function buatBenda() {
+      if (!gameBerjalan) return;
+      let jenis = Math.random();
+      let isi = '💸', tipe = 'duit';
+
+      if (jenis < 0.7) { isi = '💸'; tipe = 'duit'; } 
+      else if (jenis < 0.9) { isi = '💎'; tipe = 'berlian'; } 
+      else { isi = '😡'; tipe = 'musuh'; }
+
+      bendaJatuh.push({
+        x: Math.random() * canvas.width,
+        y: -50,
+        tipe: tipe,
+        emoji: isi,
+        kecepatan: kecepatanJatuh + Math.random() * 3
+      });
+      setTimeout(buatBenda, 500);
+    }
+
+    function update() {
+      if (!gameBerjalan) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.font = "60px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(pemain.emoji, pemain.x, pemain.y);
+
+      for (let i = 0; i < bendaJatuh.length; i++) {
+        let b = bendaJatuh[i];
+        b.y += b.kecepatan;
+        ctx.fillText(b.emoji, b.x, b.y);
+
+        if (b.y > pemain.y - 50 && b.y < pemain.y + 50 && b.x > pemain.x - 50 && b.x < pemain.x + 50) {
+            if (b.tipe === 'duit') {
+              skor += 1000;
+              bunyikan('koin'); // BUNYI TING!
+            } else if (b.tipe === 'berlian') {
+              skor += 5000;
+              bunyikan('koin');
+            } else if (b.tipe === 'musuh') {
+              bunyikan('bom'); // BUNYI DUAR!
+              kalah();
+            }
+            bendaJatuh.splice(i, 1); i--;
+            continue;
+        }
+        if (b.y > canvas.height) { bendaJatuh.splice(i, 1); i--; }
+      }
+      document.getElementById('skorBoard').innerText = "💰 UANG: Rp " + skor;
+      if (skor % 10000 === 0 && skor > 0) kecepatanJatuh += 0.02;
+      requestAnimationFrame(update);
+    }
+
+    function kalah() {
+      gameBerjalan = false;
+      document.getElementById('gameOverScreen').style.display = 'block';
+      document.getElementById('skorAkhir').innerText = "Total Kekayaan: Rp " + skor;
+    }
+  </script>
+</body>
+</html>
